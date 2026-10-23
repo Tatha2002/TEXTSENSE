@@ -1,0 +1,77 @@
+Guidence to test rest api
+
+# Django Backend Setup Guide
+
+## 1. Required Downloads
+
+1. **Python:** https://www.python.org/downloads/
+2. **Postman:** https://www.postman.com/downloads/
+3. **Visual Studio Code (optional):** https://code.visualstudio.com/
+
+During Python installation on Windows, select **Add Python to PATH**.
+
+## 2. Verify Installation
+
+Open the terminal and run:
+
+```bash
+python --version
+pip --version
+```
+
+## 3. Open the Project Folder
+
+Open the terminal in the Django project folder where `manage.py` is located.
+
+## 4. Create a Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+## 5. Activate the Virtual Environment
+
+For Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+## 6. Install Dependencies
+
+If the project contains a `requirements.txt` file:
+
+```bash
+pip install -r requirements.txt
+```
+
+Otherwise, install the required packages:
+
+```bash
+pip install django djangorestframework PyJWT
+```
+
+Install any additional packages required by the project, including database drivers if applicable.
+
+## 7. Apply Database Migrations
+
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
+## 8. Run the Django Server
+
+```bash
+python manage.py runserver
+```
+
+The backend server will run at:
+
+http://127.0.0.1:8000/
+
+Keep the terminal running while using the APIs.
+
+## 9. Stop the Server
+
+Press `Ctrl + C` in the terminal.
