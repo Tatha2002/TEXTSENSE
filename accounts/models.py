@@ -29,6 +29,7 @@ class User(AbstractUser):
         return self.email
 
 
+# JTI stands for JWT ID (JSON Web Token ID). Stores the unique ID of the revoked refresh token.
 class RevokedRefreshToken(models.Model):
     jti = models.CharField(max_length=50, unique=True)
     expires_at = models.DateTimeField()

@@ -1,15 +1,10 @@
-
 import os
 import uuid
 import jwt
-
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
-
 from rest_framework.exceptions import AuthenticationFailed
-
 from ..models import User
-
 load_dotenv()
 
 
@@ -43,11 +38,7 @@ def decode_access_token(token):
         raise RuntimeError("JWT_SECRET_KEY not found in .env")
 
     try:
-        payload = jwt.decode(
-            token,
-            secret_key,
-            algorithms=["HS256"],
-        )
+        payload = jwt.decode(token,secret_key,algorithms=["HS256"],)
 
         if payload.get("token_type") != "access":
             raise AuthenticationFailed("Invalid access token type.")
@@ -55,19 +46,13 @@ def decode_access_token(token):
         return payload["user_id"]
 
     except jwt.ExpiredSignatureError as e:
-        raise AuthenticationFailed(
-            "Access token has expired."
-        ) from e
+        raise AuthenticationFailed("Access token has expired.") from e
 
     except jwt.InvalidTokenError as e:
-        raise AuthenticationFailed(
-            "Invalid access token."
-        ) from e
+        raise AuthenticationFailed("Invalid access token.") from e
 
     except KeyError as e:
-        raise AuthenticationFailed(
-            "Invalid access token payload."
-        ) from e
+        raise AuthenticationFailed("Invalid access token payload.") from e
 
 
 # ==========================================================
@@ -101,6 +86,7 @@ def create_refresh_token(user_id, role):
     )
 
 
+# This is useful for logout and refresh operations
 def decode_refresh_token_payload(token):
     """
     Validate the refresh token and return its complete payload.
@@ -109,43 +95,27 @@ def decode_refresh_token_payload(token):
     secret_key = os.getenv("JWT_REFRESH_SECRET_KEY")
 
     if not secret_key:
-        raise RuntimeError(
-            "JWT_REFRESH_SECRET_KEY not found in .env"
-        )
+        raise RuntimeError("JWT_REFRESH_SECRET_KEY not found in .env")
 
     try:
-        payload = jwt.decode(
-            token,
-            secret_key,
-            algorithms=["HS256"],
-        )
+        payload = jwt.decode(token,secret_key,algorithms=["HS256"],)
 
         if payload.get("token_type") != "refresh":
-            raise AuthenticationFailed(
-                "Invalid refresh token type."
-            )
+            raise AuthenticationFailed("Invalid refresh token type.")
 
         if not payload.get("jti"):
-            raise AuthenticationFailed(
-                "Refresh token ID is missing."
-            )
+            raise AuthenticationFailed("Refresh token ID is missing.")
 
         if "user_id" not in payload:
-            raise AuthenticationFailed(
-                "Refresh token user ID is missing."
-            )
+            raise AuthenticationFailed("Refresh token user ID is missing.")
 
         return payload
 
     except jwt.ExpiredSignatureError as e:
-        raise AuthenticationFailed(
-            "Refresh token has expired."
-        ) from e
+        raise AuthenticationFailed("Refresh token has expired.") from e
 
     except jwt.InvalidTokenError as e:
-        raise AuthenticationFailed(
-            "Invalid refresh token."
-        ) from e
+        raise AuthenticationFailed("Invalid refresh token.") from e
 
 
 def decode_refresh_token(token):
@@ -156,29 +126,3 @@ def decode_refresh_token(token):
     payload = decode_refresh_token_payload(token)
     return payload["user_id"]
 
-
-# ==========================================================
-# AUTHENTICATE USER: Optional helper for DRF authentication.
-# ==========================================================
-
-# def authenticate_user(request):
-#     auth_header = get_authorization_header(request).split()
-#
-#     if not auth_header:
-#         raise AuthenticationFailed("Authorization header missing")
-#
-#     if len(auth_header) != 2:
-#         raise AuthenticationFailed("Authorization header malformed")
-#
-#     try:
-#         token = auth_header[1].decode("utf-8")
-#     except UnicodeDecodeError as e:
-#         raise AuthenticationFailed("Invalid token encoding") from e
-#
-#     user_id = decode_access_token(token)
-#
-#     try:
-#         user = User.objects.get(id=user_id)
-#         return user
-#     except User.DoesNotExist as e:
-#         raise AuthenticationFailed("User not found") from e

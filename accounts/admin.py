@@ -1,32 +1,17 @@
-
 from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
-
 from .models import User
 
-
+# create a custom form for creating a new user in the admin panel
 class UserCreateAdminForm(forms.ModelForm):
-    password1 = forms.CharField(
-        label="Password",
-        widget=forms.PasswordInput,
-    )
-    password2 = forms.CharField(
-        label="Confirm password",
-        widget=forms.PasswordInput,
-    )
+    password1 = forms.CharField(label="Password", widget=forms.PasswordInput,)
+    password2 = forms.CharField(label="Confirm password",widget=forms.PasswordInput,)
 
     class Meta:
         model = User
-        fields = (
-            "email",
-            "phone",
-            "name",
-            "role",
-            "is_active",
-            "is_staff",
-        )
+        fields = ("email", "phone", "name", "role", "is_active", "is_staff",)
 
     def clean_password2(self):
         password1 = self.cleaned_data.get("password1")
@@ -48,78 +33,43 @@ class UserCreateAdminForm(forms.ModelForm):
         return user
 
 
+# create a custom form for changing an existing user in the admin panel
 class UserChangeAdminForm(forms.ModelForm):
-    password = ReadOnlyPasswordHashField(
-        label="Password",
-        help_text="Passwords are stored as hashes and cannot be read.",
-    )
+    password = ReadOnlyPasswordHashField(label="Password", help_text="Passwords are stored as hashes and cannot be read.",)
 
     class Meta:
         model = User
-        fields = (
-            "email",
-            "phone",
-            "name",
-            "role",
-            "password",
-            "is_active",
-            "is_staff",
-            "is_superuser",
-            "groups",
-            "user_permissions",
-        )
+        fields = ("email","phone","name","role","password","is_active","is_staff","is_superuser","groups","user_permissions")
 
 
+# register the custom user model with the admin panel
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     add_form = UserCreateAdminForm
     form = UserChangeAdminForm
     model = User
 
-    list_display = (
-        "email",
-        "name",
-        "phone",
-        "role",
-        "is_staff",
-        "is_superuser",
-    )
+    list_display = ("email", "name", "phone", "role", "is_staff", "is_superuser",)
     list_filter = ("role", "is_staff", "is_superuser", "is_active")
     search_fields = ("email", "name", "phone")
     ordering = ("email",)
     filter_horizontal = ("groups", "user_permissions")
 
     fieldsets = (
-        ("Account details", {
-            "fields": ("email", "password", "name", "phone", "role")
-        }),
+        ("Account details", {"fields": ("email", "password", "name", "phone", "role")}),
         ("Permissions", {
-            "fields": (
-                "is_active",
-                "is_staff",
-                "is_superuser",
-                "groups",
-                "user_permissions",
-            )
+            "fields": ("is_active","is_staff","is_superuser","groups","user_permissions",)
         }),
     )
 
     add_fieldsets = (
         ("Create account", {
             "classes": ("wide",),
-            "fields": (
-                "email",
-                "phone",
-                "name",
-                "role",
-                "password1",
-                "password2",
-                "is_active",
-                "is_staff",
-            ),
+            "fields": ("email","phone","name","role","password1","password2","is_active","is_staff"),
         }),
     )
 
+    # Override the default permission methods to restrict access to superusers only
     def has_add_permission(self, request):
         return request.user.is_superuser
 
