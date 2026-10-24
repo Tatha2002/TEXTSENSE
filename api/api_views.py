@@ -41,10 +41,10 @@ class LoginAPIView(APIView):
             return Response(
                 {"errors": serializer.errors}, status=HTTP_400_BAD_REQUEST)
 
-        username = serializer.validated_data["username"]
+        email_or_phone = serializer.validated_data["email_or_phone"]
         password = serializer.validated_data["password"]
 
-        user = authenticate(request=request,username=username,password=password,)
+        user = authenticate(request=request, username=email_or_phone, password=password,)
 
         if user is None or not user.is_active:
             return Response({"message": "Invalid email/phone or password."}, status=HTTP_401_UNAUTHORIZED,)

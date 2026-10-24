@@ -30,7 +30,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    email_or_phone = serializers.CharField(label="Email/Phone")
     password = serializers.CharField(write_only=True,trim_whitespace=False)
 
 
