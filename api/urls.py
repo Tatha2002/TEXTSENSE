@@ -1,5 +1,5 @@
 from django.urls import path
-from .api_views import RegisterAPIView, LoginAPIView, TestAuthAPIView, RefreshAPIView, LogoutAPIView
+from .api_views import RegisterAPIView, LoginAPIView, TestAuthAPIView, RefreshAPIView, LogoutAPIView, ForgotPasswordAPIView, VerifyResetOTPAPIView, ResetPasswordAPIView
 
 
 urlpatterns = [
@@ -8,12 +8,22 @@ urlpatterns = [
     path("test-auth/", TestAuthAPIView.as_view(), name="test_auth"),
     path("refresh/", RefreshAPIView.as_view(), name="refresh"),
     path("logout/", LogoutAPIView.as_view(), name="logout"),
+
+    path("forgot-password/", ForgotPasswordAPIView.as_view(), name="forgot-password"),
+    path("verify-reset-otp/", VerifyResetOTPAPIView.as_view(), name="verify-reset-otp"),
+    path("reset-password/", ResetPasswordAPIView.as_view(), name="reset-password",),
 ]
 
 
 
-# POST http://127.0.0.1:8000/api/register/
-# POST http://127.0.0.1:8000/api/login/
-# GET http://127.0.0.1:8000/api/test-auth/
-# POST http://127.0.0.1:8000/api/logout/
-# GET http://127.0.0.1:8000/api/refresh/
+# POST http://127.0.0.1:8000/textsense/register/
+# POST http://127.0.0.1:8000/textsense/login/
+# GET http://127.0.0.1:8000/textsense/test-auth/
+# POST http://127.0.0.1:8000/textsense/logout/
+# POST http://127.0.0.1:8000/textsense/refresh/
+
+# POST http://127.0.0.1:8000/textsense/forgot-password/
+# POST http://127.0.0.1:8000/textsense/verify-reset-otp/
+# POST http://127.0.0.1:8000/textsense/reset-password/
+
+
