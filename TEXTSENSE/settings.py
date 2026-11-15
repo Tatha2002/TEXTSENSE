@@ -43,7 +43,16 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "accounts.apps.AccountsConfig",
+
+    # Project apps
+    "accounts",
+    "api",
+    "categories",
+    "feedback",
+    "text_analysis",
+    "analytics",
+    "content",
+    "notifications",
 
     # 3rd-party
     "rest_framework",
@@ -53,6 +62,11 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+
+    # CorsMiddleware is important because React and Django will normally run on 
+    # different development ports.
+    "corsheaders.middleware.CorsMiddleware",
+
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",

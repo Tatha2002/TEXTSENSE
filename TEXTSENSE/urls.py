@@ -7,7 +7,13 @@ from TEXTSENSE import settings
 urlpatterns = [
     path("admin/", admin.site.urls),
     # path('accounts/', include('accounts.urls')),
-    path('textsense/', include('api.urls')),
+    path('textsense/auth/', include('api.urls')),
+    path('textsense/category/', include('categories.urls')),
+    path("textsense/feedback/", include("feedback.urls")),
+    path("textsense/text-analysis/", include("text_analysis.urls")),
+    path("textsense/admin/", include("analytics.urls")),
+    path("textsense/content/", include("content.urls")),
+    path("textsense/notifications/", include("notifications.urls")),
 ]
 
 if settings.DEBUG:

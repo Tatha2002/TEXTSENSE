@@ -27,3 +27,6 @@ class JWTAuthentication(BaseAuthentication):
             raise AuthenticationFailed("User not found or inactive.") from exc
 
         return user, token
+
+    def authenticate_header(self, request):
+        return "Bearer"
