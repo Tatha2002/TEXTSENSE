@@ -16,14 +16,14 @@ urlpatterns = [
 
 
 
-# POST http://127.0.0.1:8000/textsense/register/
-# POST http://127.0.0.1:8000/textsense/login/
-# GET http://127.0.0.1:8000/textsense/test-auth/
-# POST http://127.0.0.1:8000/textsense/logout/
-# POST http://127.0.0.1:8000/textsense/refresh/
+# POST http://127.0.0.1:8000/textsense/auth/register/
+# POST http://127.0.0.1:8000/textsense/auth/login/
+# GET http://127.0.0.1:8000/textsense/auth/test-auth/
+# POST http://127.0.0.1:8000/textsense/auth/logout/
+# POST http://127.0.0.1:8000/textsense/auth/refresh/
 
-# POST http://127.0.0.1:8000/textsense/forgot-password/
-# POST http://127.0.0.1:8000/textsense/verify-reset-otp/
-# POST http://127.0.0.1:8000/textsense/reset-password/
+# POST http://127.0.0.1:8000/textsense/auth/forgot-password/
+# POST http://127.0.0.1:8000/textsense/auth/verify-reset-otp/
+# POST http://127.0.0.1:8000/textsense/auth/reset-password/
 
 

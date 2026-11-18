@@ -25,6 +25,9 @@ from accounts.models import PasswordResetOTP
 from .serializers import (ForgotPasswordSerializer, VerifyResetOTPSerializer, ResetPasswordSerializer)
 User = get_user_model()
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 
 class RegisterAPIView(APIView):
@@ -32,19 +35,20 @@ class RegisterAPIView(APIView):
         serializer = RegisterSerializer(data=request.data)
 
         if not serializer.is_valid():
-            return Response({"errors": serializer.errors}, status=HTTP_400_BAD_REQUEST,)
+            return Response({"errors": serializer.errors}, status=HTTP_400_BAD_REQUEST)
 
         user = serializer.save()
 
         return Response({
-            "message": "Registration successful..",
-            "user": {
+            "success": True,
+            "message": "Registration successful.",
+            "data": {
                 "id": user.id,
                 "name": user.name,
                 "email": user.email,
                 "phone": user.phone,
                 "role": user.role,
-            },
+            }
         }, status=HTTP_201_CREATED)
 
 
@@ -53,33 +57,38 @@ class LoginAPIView(APIView):
         serializer = LoginSerializer(data=request.data)
 
         if not serializer.is_valid():
-            return Response(
-                {"errors": serializer.errors}, status=HTTP_400_BAD_REQUEST)
+            return Response({"errors": serializer.errors}, status=HTTP_400_BAD_REQUEST)
 
         email_or_phone = serializer.validated_data["email_or_phone"]
         password = serializer.validated_data["password"]
 
-        user = authenticate(request=request, username=email_or_phone, password=password,)
+        user = authenticate(request=request, username=email_or_phone, password=password)
 
         if user is None or not user.is_active:
-            return Response({"message": "Invalid email/phone or password."}, status=HTTP_401_UNAUTHORIZED,)
+            return Response({"message": "Invalid email/phone or password."}, status=HTTP_401_UNAUTHORIZED)
 
+        # Update last login
+        user.last_login = timezone.now()
+        user.save(update_fields=["last_login"])
+
+        # Generate JWT tokens
         access_token = create_access_token(user.id, user.role)
         refresh_token = create_refresh_token(user.id, user.role)
 
         return Response({
+            "success": True,
             "message": "Login successful.",
-            "user": {
-                "id": user.id,
-                "name": user.name,
-                "email": user.email,
-                "phone": user.phone,
-                "role": user.role,
-            },
-            "tokens": {
+            "data": {
                 "access": access_token,
                 "refresh": refresh_token,
-            },
+                "user": {
+                    "id": user.id,
+                    "name": user.name,
+                    "email": user.email,
+                    "phone": user.phone,
+                    "role": user.role
+                }
+            }
         }, status=HTTP_200_OK)
 
 
@@ -167,7 +176,7 @@ class LogoutAPIView(APIView):
 
 # API view for handling forgot password requests
 class ForgotPasswordAPIView(APIView):
-    permission_classes = [AllowAny]     # allow unauthenticated and authenticated users
+    permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
@@ -179,12 +188,13 @@ class ForgotPasswordAPIView(APIView):
         email = serializer.validated_data["email"].strip()
         user = User.objects.filter(email__iexact=email).first()
 
-        # Use the same response whether the email exists or not.
         response_data = {
+            "success": True,
             "message": (
                 "If an account exists with this email, "
                 "an OTP will be sent."
-            )
+            ),
+            "data": {}
         }
 
         if user is None:
@@ -215,17 +225,24 @@ class ForgotPasswordAPIView(APIView):
 
         reset_record.save()
 
-        send_mail(subject="TEXTSENSE Password Reset OTP",
-            message=(
-                f"Hello {user.name},\n\n"
-                f"Your password reset OTP is: {otp}\n\n"
-                "This OTP expires in 5 minutes.\n"
-                "Do not share this OTP with anyone."
-            ),
-            from_email=None,
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
+        try:
+            send_mail(
+                subject="TEXTSENSE Password Reset OTP",
+                message=(
+                    f"Hello {user.name},\n\n"
+                    f"Your password reset OTP is: {otp}\n\n"
+                    "This OTP expires in 5 minutes.\n"
+                    "Do not share this OTP with anyone."
+                ),
+                from_email=None,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+        except Exception:
+            logger.exception("Failed to send password reset OTP email")
+            reset_record.otp_hash = ""
+            reset_record.otp_expires_at = None
+            reset_record.save(update_fields=["otp_hash", "otp_expires_at", "updated_at"])
 
         return Response(response_data, status=HTTP_200_OK)
 

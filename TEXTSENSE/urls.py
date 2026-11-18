@@ -14,6 +14,7 @@ urlpatterns = [
     path("textsense/admin/", include("analytics.urls")),
     path("textsense/content/", include("content.urls")),
     path("textsense/notifications/", include("notifications.urls")),
+    path('', include('public_website.urls')),
 ]
 
 if settings.DEBUG:

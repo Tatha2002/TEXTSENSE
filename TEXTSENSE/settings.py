@@ -18,6 +18,9 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 EMAIL_TIMEOUT = 10
 
 
+SUPPORT_EMAIL = "tathagata.das123tiga@gmail.com"
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -53,6 +56,7 @@ INSTALLED_APPS = [
     "analytics",
     "content",
     "notifications",
+    "public_website",
 
     # 3rd-party
     "rest_framework",
@@ -161,6 +165,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 

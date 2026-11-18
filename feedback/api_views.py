@@ -1,3 +1,4 @@
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -5,75 +6,83 @@ from rest_framework import status
 
 from .models import Feedback
 from .serializers import FeedbackSerializer
-# from categories.permissions import IsTextSenseAdmin
-from django.db import transaction
 
+from categories.permissions import IsTextSenseAdmin
 from notifications.services import create_notification
 from text_analysis.services import analyze_and_save_feedback
 
 
+class FeedbackListAPIView(APIView):
 
-class FeedbackListCreateAPIView(APIView):
-
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsTextSenseAdmin]
 
     def get(self, request):
+
         user = request.user
 
-        if user.is_superuser or user.role in ["SUPER_USER", "REACT_ADMIN"]:
-            feedbacks = Feedback.objects.all().order_by("-created_at")
-        else:
-            feedbacks = Feedback.objects.filter(user=user).order_by("-created_at")
+        is_admin = (
+            user.is_superuser
+            or user.role in ["SUPER_USER", "REACT_ADMIN"]
+        )
 
-        serializer: FeedbackSerializer = FeedbackSerializer(feedbacks, many=True)
+        if is_admin:
+            feedbacks = Feedback.objects.all()
+        else:
+            feedbacks = Feedback.objects.filter(user=user)
+
+        feedbacks = feedbacks.select_related(
+            "user", "category"
+        ).order_by("-created_at")
+
+        serializer = FeedbackSerializer(feedbacks, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-    # def post(self, request):
-    #     serializer = FeedbackSerializer(data=request.data)
+class FeedbackCreateAPIView(APIView):
 
-    #     if not serializer.is_valid():
-    #         return Response(
-    #             serializer.errors,
-    #             status=status.HTTP_400_BAD_REQUEST
-    #         )
+    permission_classes = [IsAuthenticated]
 
-    #     feedback = serializer.save(user=request.user)
-
-    #     return Response(
-    #         {
-    #             "message": "Feedback submitted successfully",
-    #             "feedback": FeedbackSerializer(feedback).data
-    #         },
-    #         status=status.HTTP_201_CREATED
-    #     )
-
-
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
 
         serializer = FeedbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        with transaction.atomic():
+        # Save feedback first. Status is fixed by the backend.
+        feedback = serializer.save(user=request.user, status="NEW")
 
-            feedback = serializer.save(user=request.user)
-
-            # Create feedback submission notification
+        # Notification failure must not delete the feedback.
+        try:
             create_notification(
                 user=request.user,
+                title="Feedback Submitted",
                 message="Your feedback was submitted successfully.",
-                notification_type="FEEDBACK_SUBMITTED"
+                notification_type="FEEDBACK_SUBMITTED",
+                category="FEEDBACK",
+                priority="MEDIUM",
+                reference_id=str(feedback.id)
             )
 
-            # Keep your existing NLP analysis call here
+        except Exception:
+            pass
+
+        # NLP failure must not delete the feedback.
+        analysis_error = False
+
+        try:
             analyze_and_save_feedback(feedback)
+        except Exception:
+            analysis_error = True
 
-        return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED
-        )
+        response_data = FeedbackSerializer(feedback).data
 
+        if analysis_error:
+            response_data["analysis_message"] = (
+                "Feedback saved successfully, but sentiment analysis "
+                "could not be completed."
+            )
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class FeedbackDetailAPIView(APIView):
@@ -82,7 +91,8 @@ class FeedbackDetailAPIView(APIView):
 
     def get_object(self, pk):
         try:
-            return Feedback.objects.get(pk=pk)
+            return Feedback.objects.select_related("user", "category").get(pk=pk)
+
         except Feedback.DoesNotExist:
             return None
 
@@ -90,123 +100,73 @@ class FeedbackDetailAPIView(APIView):
         feedback = self.get_object(pk)
 
         if feedback is None:
-            return Response(
-                {"error": "Feedback not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Feedback not found"},status=status.HTTP_404_NOT_FOUND)
 
         is_admin = (request.user.is_superuser or request.user.role in ["SUPER_USER", "REACT_ADMIN"])
 
-        if not is_admin and feedback.user != request.user:
-            return Response(
-                {"error": "You do not have permission to view this feedback"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if not is_admin and feedback.user_id != request.user.id:
+            return Response({"error": "You do not have permission to view this feedback"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = FeedbackSerializer(feedback)
-
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    # def patch(self, request, pk):
-
-    #     is_admin = (
-    #         request.user.is_superuser
-    #         or request.user.role in ["SUPER_USER", "REACT_ADMIN"]
-    #     )
-
-    #     if not is_admin:
-    #         return Response(
-    #             {"error": "Only admins can update feedback"},
-    #             status=status.HTTP_403_FORBIDDEN
-    #         )
-
-    #     feedback = self.get_object(pk)
-
-    #     if feedback is None:
-    #         return Response(
-    #             {"error": "Feedback not found"},
-    #             status=status.HTTP_404_NOT_FOUND
-    #         )
-
-    #     # Admin can update the status only.
-    #     allowed_fields = {"status"}
-
-    #     if not set(request.data.keys()).issubset(allowed_fields):
-    #         return Response(
-    #             {"error": "Only status can be updated here"},
-    #             status=status.HTTP_400_BAD_REQUEST
-    #         )
-
-    #     serializer = FeedbackSerializer(feedback, data=request.data, partial=True)
-
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 
     def patch(self, request, pk):
 
-        is_admin = (
-            request.user.is_superuser
-            or request.user.role in ["SUPER_USER", "REACT_ADMIN"]
-        )
+        # Only admins can update feedback status.
+        permission = IsTextSenseAdmin()
 
-        if not is_admin:
-            return Response(
-                {"error": "Only admins can update feedback"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if not permission.has_permission(request, self):
+            return Response({"error": "Only admins can update feedback"}, status=status.HTTP_403_FORBIDDEN)
 
         feedback = self.get_object(pk)
 
         if feedback is None:
-            return Response(
-                {"error": "Feedback not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Feedback not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Admin can update the status only.
-        allowed_fields = {"status"}
+        if set(request.data.keys()) != {"status"}:
+            return Response({"error": "Only the status field can be updated"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not set(request.data.keys()).issubset(allowed_fields):
-            return Response(
-                {"error": "Only status can be updated here"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Store previous status
         old_status = feedback.status
+        new_status = request.data.get("status")
 
-        serializer = FeedbackSerializer(
-            feedback,
-            data=request.data,
-            partial=True
-        )
+        valid_statuses = dict(Feedback.STATUS_CHOICES).keys()
 
-        if serializer.is_valid():
+        if new_status not in valid_statuses:
+            return Response({"error": "Invalid feedback status"}, status=status.HTTP_400_BAD_REQUEST)
 
-            updated_feedback = serializer.save()
+        feedback.status = new_status
+        feedback.save(update_fields=["status"])
 
-            # Generate notification only if status changes
-            if old_status != updated_feedback.status:
-
+        if old_status != new_status:
+            try:
                 create_notification(
-                    user=updated_feedback.user,
-                    message=f"Your feedback status has been updated to {updated_feedback.status}.",
-                    notification_type="ADMIN_UPDATE"
+                    user=feedback.user,
+                    title="Feedback Status Updated",
+                    message=f"Your feedback status has been updated to {new_status}.",
+                    notification_type="ADMIN_UPDATE",
+                    category="FEEDBACK",
+                    priority="HIGH",
+                    reference_id=str(feedback.id)
                 )
 
-            return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
-            )
+            except Exception:
+                pass
 
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        serializer = FeedbackSerializer(feedback)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def delete(self, request, pk):
 
+        permission = IsTextSenseAdmin()
+
+        if not permission.has_permission(request, self):
+            return Response({"error": "Only admins can delete feedback"}, status=status.HTTP_403_FORBIDDEN)
+
+        feedback = self.get_object(pk)
+
+        if feedback is None:
+            return Response({"error": "Feedback not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        feedback.delete()
+
+        return Response({"message": "Feedback deleted successfully"}, status=status.HTTP_200_OK)

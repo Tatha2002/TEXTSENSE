@@ -1,15 +1,16 @@
+
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Notification
 from .serializers import NotificationSerializer
-from rest_framework.permissions import IsAuthenticated
 
 
-# 1. List all notifications of logged-in user
+# 1. List notifications of logged-in user
 
 class NotificationListAPIView(generics.ListAPIView):
 
@@ -20,9 +21,9 @@ class NotificationListAPIView(generics.ListAPIView):
         return Notification.objects.filter(user=self.request.user)
 
 
-# 2. View or delete a particular notification
+# 2. View notification details
 
-class NotificationDetailAPIView(generics.RetrieveDestroyAPIView):
+class NotificationDetailAPIView(generics.RetrieveAPIView):
 
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
@@ -31,7 +32,17 @@ class NotificationDetailAPIView(generics.RetrieveDestroyAPIView):
         return Notification.objects.filter(user=self.request.user)
 
 
-# 3. Mark a particular notification as read
+# 3. Delete a particular notification
+
+class NotificationDeleteAPIView(generics.DestroyAPIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user)
+
+
+# 4. Mark a particular notification as read
 
 class MarkNotificationReadAPIView(APIView):
 
@@ -54,12 +65,14 @@ class MarkNotificationReadAPIView(APIView):
         )
 
 
-# 4. Mark all notifications as read
+# 5. Mark all notifications as read
 
 class MarkAllNotificationsReadAPIView(APIView):
+
     permission_classes = [IsAuthenticated]
 
     def patch(self, request):
+
         updated_count = Notification.objects.filter(user=request.user, read_status=False).update(read_status=True)
 
         return Response(
@@ -69,9 +82,3 @@ class MarkAllNotificationsReadAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
-
-
-# 5. Delete a particular notification
-
-# Already handled by NotificationDetailAPIView
-# using DELETE method.

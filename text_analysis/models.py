@@ -13,6 +13,7 @@ class TextAnalysis(models.Model):
     feedback = models.OneToOneField(Feedback, on_delete=models.CASCADE, related_name="analysis")
     sentiment = models.CharField(max_length=20, choices=SENTIMENT_CHOICES)
     confidence = models.FloatField()
+    scores = models.JSONField(default=dict, blank=True)
     cleaned_text = models.TextField(blank=True)
     processed_text = models.TextField(blank=True)
     total_tokens = models.PositiveIntegerField(default=0)

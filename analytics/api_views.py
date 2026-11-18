@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from categories.permissions import IsTextSenseAdmin
-from .services import (get_dashboard_analytics,get_user_analytics,get_feedback_analytics,get_category_analytics,)
+from .services import (get_dashboard_analytics,get_user_analytics,get_feedback_analytics,get_category_analytics, get_keyword_analytics)
 
 
 class AdminAnalyticsAPIView(APIView):
@@ -54,4 +54,15 @@ class AdminCategoryAnalyticsAPIView(APIView):
         return Response({
             "message": "Category analytics fetched successfully",
             "categories": data
+        })
+
+
+class AdminKeywordAnalyticsAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsTextSenseAdmin]
+
+    def get(self, request):
+        data = get_keyword_analytics()
+        return Response({
+            "message": "Keyword analytics fetched successfully",
+            "keywords": data
         })
