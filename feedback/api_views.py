@@ -1,11 +1,12 @@
-
+from django.db.models import Q, Count
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 
 from .models import Feedback
-from .serializers import FeedbackSerializer
+from .serializers import FeedbackSerializer, MyFeedbackSerializer, RecentFeedbackSerializer
+from django.core.exceptions import ValidationError
 
 from categories.permissions import IsTextSenseAdmin
 from notifications.services import create_notification
@@ -170,3 +171,110 @@ class FeedbackDetailAPIView(APIView):
         feedback.delete()
 
         return Response({"message": "Feedback deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class MyFeedbackAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        # Get feedback belonging to the logged-in user
+        feedbacks = Feedback.objects.filter(user=request.user).select_related("category", "analysis").order_by("-created_at")
+
+        # Optional status filter
+        status_filter = request.query_params.get("status")
+
+        if status_filter:
+            valid_statuses = dict(Feedback.STATUS_CHOICES)
+
+            if status_filter not in valid_statuses:
+                return Response(
+                    {"error": "Invalid feedback status"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            feedbacks = feedbacks.filter(status=status_filter)
+
+        # Optional search by title or text
+        search = request.query_params.get("search")
+
+        if search:
+            feedbacks = feedbacks.filter(Q(title__icontains=search) | Q(text__icontains=search))
+
+        # Serialize the feedback records
+        serializer = MyFeedbackSerializer(feedbacks, many=True)
+
+        return Response(
+            {
+                "message": "Feedback fetched successfully",
+                "feedback": serializer.data
+            }, status=status.HTTP_200_OK
+        )
+
+
+
+class MyFeedbackSummaryAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        # Get only the logged-in user's feedback
+        feedbacks = Feedback.objects.filter(user=request.user)
+
+        # 1. Total feedback
+        total_feedback = feedbacks.count()
+
+        # 2. Count feedback according to status
+        status_counts = {
+            item["status"]: item["count"]
+            for item in feedbacks.values("status").annotate(count=Count("id"))
+        }
+
+        # Include all available statuses, even if count is zero
+        status_distribution = [
+            {
+                "status": status_code,
+                "count": status_counts.get(status_code, 0)
+            }
+            for status_code, status_name in Feedback.STATUS_CHOICES
+        ]
+
+        # 3. Pending and reviewed counts
+        pending_feedback = (status_counts.get("NEW", 0) + status_counts.get("PENDING", 0))
+
+        reviewed_feedback = (status_counts.get("REVIEWED", 0) + status_counts.get("RESOLVED", 0))
+
+        # 4. Sentiment distribution
+        sentiment_counts = {
+            item["analysis__sentiment"]: item["count"]
+            for item in feedbacks.values("analysis__sentiment").annotate(count=Count("id"))
+        }
+
+        sentiment_distribution = {
+            "Positive": sentiment_counts.get("Positive", 0),
+            "Neutral": sentiment_counts.get("Neutral", 0),
+            "Negative": sentiment_counts.get("Negative", 0),
+            "not_analyzed": sentiment_counts.get(None, 0)
+        }
+
+        # 5. Latest 5 feedback records
+        recent_feedbacks = (feedbacks.select_related("category", "analysis").order_by("-created_at")[:5])
+
+        recent_serializer = RecentFeedbackSerializer(recent_feedbacks, many=True)
+
+        # Final response
+        return Response(
+            {
+                "message": "Summary fetched successfully",
+                "summary": {
+                    "total_feedback": total_feedback,
+                    "pending_feedback": pending_feedback,
+                    "reviewed_feedback": reviewed_feedback,
+                    "status_distribution": status_distribution,
+                    "sentiment_distribution": sentiment_distribution,
+                    "recent_feedback": recent_serializer.data
+                }
+            }, status=status.HTTP_200_OK
+        )

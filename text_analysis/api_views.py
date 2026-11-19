@@ -5,8 +5,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from categories.permissions import IsTextSenseAdmin
 from feedback.models import Feedback
-from .services import analyze_and_save_feedback
+from .services import analyze_and_save_feedback, get_analysis_result
 from notifications.services import create_notification
+
+from text_analysis.models import TextAnalysis
+from .serializers import TextAnalysisSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -88,3 +91,64 @@ class TextAnalysisPredictAPIView(APIView):
                 },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
+
+
+
+class TextAnalysisResultAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, feedback_id):
+
+        # 1. Check whether feedback exists
+        try:
+            feedback = Feedback.objects.get(id=feedback_id)
+
+        except Feedback.DoesNotExist:
+            return Response(
+                {
+                    "error": "Feedback not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 2. Check user permission
+        user = request.user
+
+        is_admin = (
+            user.is_superuser
+            or user.role in ["SUPER_USER", "REACT_ADMIN"]
+        )
+
+        if not is_admin and feedback.user_id != user.id:
+            return Response(
+                {
+                    "error": "You do not have permission to view this analysis."
+                },
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 3. Retrieve existing analysis
+        try:
+            analysis = TextAnalysis.objects.get(feedback=feedback)
+
+        except TextAnalysis.DoesNotExist:
+            return Response(
+                {
+                    "error": "Analysis not available yet.",
+                    "code": "analysis_pending"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 4. Serialize stored analysis
+        result = get_analysis_result(analysis)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Analysis fetched successfully.",
+                "data": result
+            },
+            status=status.HTTP_200_OK
+        )
